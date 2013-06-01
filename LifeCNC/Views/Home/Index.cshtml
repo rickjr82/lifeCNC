@@ -1,0 +1,99 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+
+@model LifeCNC.ViewModels.cmSurveyList
+<script src="~/js/knockout-2.2.1.js"></script> 
+<script src="~/js/knockout.mapping-latest.js"></script>
+<table data-bind="visible: viewModel.SurveyQuestions().length >0">
+    <thead>
+        <tr>
+            <th>Question</th>
+        </tr>
+    </thead>
+    <tbody data-bind='foreach: SurveyQuestions'>
+        <tr>
+            <td><input  data-bind="value: Question, valueUpdate: 'afterkeydown' " /></td>
+            <th><button data-bind="click: $root.saveQuestion, enable: Question() != originalValue()">Save</button></th>
+            <th><button data-bind="click: $root.deleteQuestion">Delete</button></th>
+            <th><button data-bind="click: $root.showAnswers">Show Answers</button></th>
+        </tr>
+        <tr>
+            <th>Answer</th>
+        </tr>
+        <tr data-bind="template: { name: 'answer-template', foreach: SurveyAnswers }, visible: showAnswers()"> </tr>
+
+    </tbody>
+</table>
+<button data-bind="click: viewModel.addQuestion">Add Question</button>
+<button data-bind="enable: viewModel.SurveyQuestions().length>0" type="submit">Submit</button>
+
+<script type="text/html" id="answer-template">
+        <tr><td><input  data-bind="value: Answer, valueUpdate: 'afterkeydown' " /><td></tr>
+</script>
+<script type="text/javascript">
+    var self=this;
+    
+    var data= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
+    self.MakeQuestion=function()
+    {
+        var newQuestion={ Id:0, Question:"", originalValue:"", showAnswers:false, SurveyAnswers: {}};
+        return ko.mapping.fromJS(newQuestion)
+    }
+    self.MakeQuestion1=function(question)
+    {
+        var newQuestion={ Id:question.Id, Question:question.Question, originalValue:question.Question, showAnswers:false, SurveyAnswers: question.SurveyAnswers};
+        return ko.mapping.fromJS(newQuestion)
+    }
+    var mapping = {
+        'SurveyQuestions': {
+            create: function (options) {
+                var result = self.MakeQuestion1(options.data);
+                return result;
+            }
+        }
+    };
+    
+    var viewModel= ko.mapping.fromJS(data, mapping);
+    viewModel.addQuestion= function(){
+        var newQuestion=self.MakeQuestion();
+        self.viewModel.SurveyQuestions.push(newQuestion);        
+    };
+   
+    viewModel.deleteQuestion= function(question){
+        self.viewModel.SurveyQuestions.remove(question);
+        if (question.Id!=0) {
+            question.Question(question.originalValue);
+            var data = {data: ko.toJSON(question)};
+            $.getJSON("/Home/DeleteQuestion", data, function(returnedData) {
+            });
+        }
+    };
+    viewModel.showAnswers= function(question){
+        var index=self.viewModel.SurveyQuestions.indexOf(question);
+        var questionLine=self.viewModel.SurveyQuestions.peek()[index];
+        questionLine.showAnswers(questionLine.showAnswers()==false);
+           
+    };
+    
+    viewModel.saveQuestion= function(question){
+        var me=this;
+        var data = {data: ko.toJSON(question)};
+        $.getJSON("/Home/SaveQuestion", data, function(returnedData) {
+            if (question.Id()==0){
+                self.viewModel.SurveyQuestions.pop();
+                var toAdd=self.viewModel.MakeQuestion1(question);
+                self.viewModel.SurveyQuestions.push(toAdd);  
+            }
+            else
+            {
+                var index=self.viewModel.SurveyQuestions.indexOf(question);
+                self.viewModel.SurveyQuestions.peek()[index].originalValue(question.Question());
+            }
+           
+        });
+    }
+
+     ko.applyBindings(viewModel);
+
+</script>
