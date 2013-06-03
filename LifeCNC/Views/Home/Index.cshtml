@@ -13,23 +13,23 @@
     </thead>
     <tbody data-bind='foreach: SurveyQuestions'>
         <tr>
-            <td><input  data-bind="value: Question, valueUpdate: 'afterkeydown' " /></td>
-            <th><button data-bind="click: $root.saveQuestion, enable: Question() != originalValue()">Save</button></th>
-            <th><button data-bind="click: $root.deleteQuestion">Delete</button></th>
-            <th><button data-bind="click: $root.showAnswers">Show Answers</button></th>
-        </tr>
-        <tr>
-            <th data-bind="visible: showAnswers()">Answer</th>
-        </tr>
-        <tr data-bind="template: { name: 'answer-template', foreach: SurveyAnswers }, visible: showAnswers()"> </tr>
+            <td><input  data-bind="value: Question, valueUpdate: 'afterkeydown' "/></td>
+            <td><button data-bind="click: $root.saveQuestion, enable: Question() != originalValue()">Save</button></td>
+            <td><button data-bind="click: $root.deleteQuestion">Delete</button></td>
+            <td><button data-bind="click: $root.showAnswers">Show Answers</button></td>
+       </tr>
+              <!-- ko foreach: SurveyAnswers -->
+             <tr data-bind="visible: $parent.showAnswers()"><td>Answer<input  data-bind="    value: Answer, valueUpdate: 'afterkeydown' " /><td></tr>
+            <!-- /ko -->
+       
+        <tr><td><button data-bind="click: function(data, event) { $root.addAnswer($index(), Id()) }, visible: showAnswers()">Add Answer</button></td></tr>
 
     </tbody>
 </table>
 <button data-bind="click: viewModel.addQuestion">Add Question</button>
-<button data-bind="enable: viewModel.SurveyQuestions().length>0" type="submit">Submit</button>
 
 <script type="text/html" id="answer-template">
-        <tr><td><input  data-bind="value: Answer, valueUpdate: 'afterkeydown' " /><td></tr>
+        <tr><td>Answer</td><td><input  data-bind="value: Answer, valueUpdate: 'afterkeydown' " /><td></tr>
 </script>
 <script type="text/javascript">
     var self=this;
@@ -37,13 +37,19 @@
     var data= @Html.Raw(new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(Model));
     self.MakeQuestion=function()
     {
-        var newQuestion={ Id:0, Question:"", originalValue:"", showAnswers:false, SurveyAnswers: []};
-        return ko.mapping.fromJS(newQuestion)
+        var newQuestion={ Id:0, Question:"", originalValue:"", showAnswers:false};
+        var questionMade=ko.mapping.fromJS(newQuestion)
+        questionMade.SurveyAnswers=ko.observableArray();
+        return questionMade;
     }
     self.MakeQuestion1=function(question)
     {
-        var newQuestion={ Id:question.Id, Question:question.Question, originalValue:question.Question, showAnswers:false, SurveyAnswers: question.SurveyAnswers};
-        return ko.mapping.fromJS(newQuestion)
+        var newQuestion={ Id:question.Id, Question:question.Question, originalValue:question.Question, showAnswers:false};
+        var questionMade=ko.mapping.fromJS(newQuestion)
+        
+        questionMade.SurveyAnswers=ko.observableArray(question.SurveyAnswers);
+        
+        return questionMade;
     }
     var mapping = {
         'SurveyQuestions': {
@@ -54,10 +60,22 @@
         }
     };
     
+    self.MakeAnswer=function(questionId)
+    {
+        var newAnswer={ Id:0, Answer:"", originalValue:"", QuestionId:questionId};
+        return ko.mapping.fromJS(newAnswer)
+    }
+    
     var viewModel= ko.mapping.fromJS(data, mapping);
+    
     viewModel.addQuestion= function(){
         var newQuestion=self.MakeQuestion();
         self.viewModel.SurveyQuestions.push(newQuestion);        
+    };
+    viewModel.addAnswer= function(index, questionId){
+        var newAnswer=self.MakeAnswer(questionId);
+        self.viewModel.SurveyQuestions()[index].SurveyAnswers().push(newAnswer);
+        ko.mapping.fromJS(self.viewModel);
     };
    
     viewModel.deleteQuestion= function(question){
@@ -88,12 +106,12 @@
             else
             {
                 var index=self.viewModel.SurveyQuestions.indexOf(question);
-                self.viewModel.SurveyQuestions.peek()[index].originalValue(question.Question());
+                self.viewModel.SurveyQuestions()[index].originalValue(question.Question());
             }
            
         });
     }
-
+   
      ko.applyBindings(viewModel);
 
 </script>
